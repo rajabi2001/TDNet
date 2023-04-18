@@ -1,4 +1,7 @@
 # TDNet
+
+Original Implaminitation But Adapted for [[Viper](https://playing-for-benchmarks.org)] Dataset
+
 Temporally Distributed Networks for Fast Video Semantic Segmentation (CVPR'20)
 
 [Ping Hu](http://cs-people.bu.edu/pinghu/), [Fabian Caba Heilbron](http://fabiancaba.com/), [Oliver Wang](http://www.oliverwang.info/), [Zhe Lin](http://sites.google.com/site/zhelin625/), [Stan Sclaroff](http://www.cs.bu.edu/~sclaroff/), [Federico Perazzi](https://fperazzi.github.io/)
