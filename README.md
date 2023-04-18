@@ -1,6 +1,6 @@
 # TDNet
 
-#Original Implementation But Adapted for [Viper}(https://playing-for-benchmarks.org) Dataset
+### Original Implementation But Adapted for [Viper](https://playing-for-benchmarks.org/) Dataset
 
 Temporally Distributed Networks for Fast Video Semantic Segmentation (CVPR'20)
 
