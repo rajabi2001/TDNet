@@ -6,8 +6,10 @@ import numpy as np
 import imageio
 import cv2
 import timeit
+from PIL import Image
 from model import td4_psp18, td2_psp50, pspnet
-from dataloader import cityscapesLoader
+from dataloader import cityscapesLoader, Viper
+from torch.utils import data
 #
 
 
@@ -21,9 +23,12 @@ def test(args):
 
     if args.model=='td4-psp18':
         path_num = 4
-        vid_seq = cityscapesLoader(img_path=args.img_path,in_size=(769,1537))
+        num_class = 31
+        print(args.img_path)
+        vid_seq = Viper(img_path=args.img_path,in_size=(769,1537))
+        # vid_seq = cityscapesLoader(img_path=args.img_path,in_size=(769,1537))
         vid_seq.load_frames()
-        model = td4_psp18.td4_psp18(nclass=19,path_num=path_num,model_path=args._td4_psp18_path)
+        model = td4_psp18.td4_psp18(nclass=31,path_num=path_num,model_path=args._td4_psp18_path)
 
     elif args.model=='td2-psp50':
         path_num = 2
@@ -33,17 +38,25 @@ def test(args):
 
     elif args.model=='psp101':
         path_num = 1
-        vid_seq = cityscapesLoader(img_path=args.img_path,in_size=(769,1537))
+        # vid_seq = cityscapesLoader(img_path=args.img_path,in_size=(769,1537))
+        vid_seq = Viper(img_path=args.img_path,in_size=(769,1537))
         vid_seq.load_frames()
         model = pspnet.pspnet(nclass=19,model_path=args._psp101_path)
     
     model.eval()
     model.to(device)
 
+
     timer = 0.0
     
+    i = -1
     with torch.no_grad():
-        for i, (image, img_name, folder, ori_size) in enumerate(vid_seq.data):
+        # for i, (image, img_name, folder, ori_size) in enumerate(vid_seq.data):
+        for i, (image, ori_size) in enumerate(vid_seq.data):
+            
+
+            # Image.fromarray(np.uint8(image[0].permute(1,2,0).numpy())).convert("RGB").show()
+
 
             image = image.to(device)
 
@@ -64,11 +77,11 @@ def test(args):
             pred = cv2.resize(pred, (ori_size[0]//4,ori_size[1]//4), interpolation=cv2.INTER_NEAREST)
             decoded = vid_seq.decode_segmap(pred)
 
-            save_dir = os.path.join(args.output_path,folder)
-            res_path = os.path.join(save_dir,img_name)
-            if not os.path.exists(save_dir):
-                os.mkdir(save_dir)
-            imageio.imwrite(res_path, decoded.astype(np.uint8))
+            save_dir = os.path.join(args.output_path, f"sample_{i}.jpg")
+            # res_path = os.path.join(save_dir,img_name)
+            # if not os.path.exists(save_dir):
+            #     os.mkdir(save_dir)
+            imageio.imwrite(save_dir, decoded.astype(np.uint8))
             cv2.namedWindow("Image")
             cv2.imshow("Image", decoded.astype(np.uint8))
             cv2.waitKey(1)
@@ -84,14 +97,16 @@ def test(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Params")
+    # parser.add_argument("--img_path",nargs="?",type=str,
+    #         default="./data/vid1",help="Path_to_Frame",)
     parser.add_argument("--img_path",nargs="?",type=str,
-            default="./data/vid1",help="Path_to_Frame",)
+            default="./data/viper_vss",help="Path_to_Frame",)
 
     parser.add_argument("--output_path",nargs="?",type=str,
-            default="./output/",help="Path_to_Save",)
+            default="./output/viper/test_20",help="Path_to_Save",)
 
     parser.add_argument("--_td4_psp18_path",nargs="?",type=str,
-            default="./checkpoint/td4-psp18.pkl",help="Path_to_PSP_Model",)
+            default="./checkpoint/transfer_td4-psp18_20.pth",help="Path_to_PSP_Model",)
 
     parser.add_argument("--_td2_psp50_path",nargs="?",type=str,
             default="./checkpoint/td2-psp50.pkl",help="Path_to_PSP_Model",)
@@ -102,7 +117,7 @@ if __name__ == "__main__":
     parser.add_argument("--gpu",nargs="?",type=str,default='0',help="gpu_id",)
 
     parser.add_argument("--model",nargs="?",type=str,default='td4-psp18',
-            help="model in [td4-psp18, td2_psp50, psp101]",)
+            help="model in [td4-psp18, td2-psp50, psp101]",)
 
     args = parser.parse_args()
 
