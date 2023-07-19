@@ -1,0 +1,10 @@
+*/__pycache__
+*\__pycache__
+Training/checkpoint
+Training/pretrained
+Training/data
+Training/result
+Testing/checkpoint
+Testing/data
+Testing/output
+

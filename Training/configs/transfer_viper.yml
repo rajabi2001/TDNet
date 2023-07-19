@@ -38,12 +38,12 @@ training:
         colorjtr: [0.5,0.5,0.5]
         scale: [810,1440]
         rcrop: [256,512]
-    resume: "" ##
+    resume: ./checkpoint/viper_td4-psp18_base2.pth
     finetune: False
     visdom: False
 
 validating:
-    resume: "" ##
+    resume: ./checkpoint/finetune_viper_td4_psp18_15999.pth
     n_workers: 1
     batch_size: 1
     val_augmentations:

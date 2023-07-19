@@ -302,7 +302,6 @@ class FCNHead(nn.Module):
         return self.conv5(x)
 
 
-
 class Layer_Norm(nn.Module):
     def __init__(self, shape):
         super(Layer_Norm, self).__init__()
