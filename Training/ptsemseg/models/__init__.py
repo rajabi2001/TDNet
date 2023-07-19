@@ -1,14 +1,14 @@
 import copy
 import torchvision.models as models
 
-from encoding.nn import SyncBatchNorm
+# from encoding.nn import SyncBatchNorm
 from ptsemseg.models.td4_psp.pspnet_4p import pspnet_4p
 from ptsemseg.models.td4_psp.td4_psp import td4_psp
 from ptsemseg.models.td2_psp.pspnet_2p import pspnet_2p
 from ptsemseg.models.td2_psp.td2_psp import td2_psp
 from ptsemseg.models.td2_fanet.td2_fa import td2_fa
 
-def get_model(model_dict, nclass, loss_fn=None, mdl_path=None, teacher=None):
+def get_model(model_dict, nclass, loss_fn=None, mdl_path=None, teacher=None, finetune=False):
     name = model_dict["arch"]
     model = _get_model_instance(name)
     param_dict = copy.deepcopy(model_dict)
@@ -23,9 +23,11 @@ def get_model(model_dict, nclass, loss_fn=None, mdl_path=None, teacher=None):
     if teacher is not  None:
         param_dict['teacher'] = teacher
 
-    if param_dict['syncBN']:
-        param_dict['norm_layer'] = SyncBatchNorm
+    # if param_dict['syncBN']:
+    #     param_dict['norm_layer'] = SyncBatchNorm
     param_dict.pop('syncBN')
+
+    param_dict['finetune'] = finetune
     
     model = model(nclass=nclass, **param_dict)
     return model

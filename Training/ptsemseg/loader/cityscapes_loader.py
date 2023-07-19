@@ -76,7 +76,7 @@ class cityscapesLoader(data.Dataset):
         self.files = {}
 
         self.images_base = os.path.join(self.root, "leftImg8bit", self.split)
-        self.videos_base = os.path.join(self.root, "leftImg8bit_sequence", self.split)
+        # self.videos_base = os.path.join(self.root, "leftImg8bit_sequence", self.split)
         self.annotations_base = os.path.join(self.root, "gtFine", self.split)
 
         self.files[split] = recursive_glob(rootdir=self.images_base, suffix=".png")
@@ -104,7 +104,7 @@ class cityscapesLoader(data.Dataset):
             33,
         ]
         self.class_names = [
-            "unlabelled",
+            # "unlabelled",
             "road",
             "sidewalk",
             "building",
@@ -153,26 +153,32 @@ class cityscapesLoader(data.Dataset):
             lbl = imageio.imread(lbl_path)
             lbl = self.encode_segmap(np.array(lbl, dtype=np.uint8))
 
-            vid_info = img_path.split('/')[-1].split('_')
+            vid_info = img_path.replace('\\','/').split('/')[-1].split('_')
             city, seq, cur_frame = vid_info[0], vid_info[1], vid_info[2]
             f4_id = int(cur_frame)
             f3_id = f4_id - random.randint(1, self.interval)
             f2_id = f3_id - random.randint(1, self.interval)
             f1_id = f2_id - random.randint(1, self.interval)
 
-            f4_path = os.path.join(self.videos_base, city, ("%s_%s_%06d_leftImg8bit.png" % (city, seq, f4_id)))
+            f4_path = os.path.join(self.images_base, city, ("%s_%s_%06d_leftImg8bit.png" % (city, seq, f4_id)))
             f4_img = imageio.imread(f4_path)
             f4_img = np.array(f4_img, dtype=np.uint8)
 
-            f3_path = os.path.join(self.videos_base, city, ("%s_%s_%06d_leftImg8bit.png" % (city, seq, f3_id)))
+            f3_path = os.path.join(self.images_base, city, ("%s_%s_%06d_leftImg8bit.png" % (city, seq, f3_id)))
+            if not os.path.isfile(f3_path):
+                f3_path = f4_path
             f3_img = imageio.imread(f3_path)
             f3_img = np.array(f3_img, dtype=np.uint8)
             
-            f2_path = os.path.join(self.videos_base, city, ("%s_%s_%06d_leftImg8bit.png" % (city, seq, f2_id)))
+            f2_path = os.path.join(self.images_base, city, ("%s_%s_%06d_leftImg8bit.png" % (city, seq, f2_id)))
+            if not os.path.isfile(f2_path):
+                f2_path = f4_path
             f2_img = imageio.imread(f2_path)
             f2_img = np.array(f2_img, dtype=np.uint8)
 
-            f1_path = os.path.join(self.videos_base, city, ("%s_%s_%06d_leftImg8bit.png" % (city, seq, f1_id)))
+            f1_path = os.path.join(self.images_base, city, ("%s_%s_%06d_leftImg8bit.png" % (city, seq, f1_id)))
+            if not os.path.isfile(f1_path):
+                f1_path = f4_path
             f1_img = imageio.imread(f1_path)
             f1_img = np.array(f1_img, dtype=np.uint8)
 
@@ -184,6 +190,7 @@ class cityscapesLoader(data.Dataset):
             f2_img = f2_img.float()
             f1_img = f1_img.float()
             lbl = torch.from_numpy(lbl).long()
+
 
             if self.path_num == 4:
                 return [f1_img, f2_img, f3_img, f4_img], lbl
@@ -226,7 +233,7 @@ if __name__ == "__main__":
 
     augmentations = Compose([Scale(2048), RandomRotate(10), RandomHorizontallyFlip(0.5)])
 
-    local_path = "/datasets01/cityscapes/112817/"
+    local_path = "data/cityscapes/112817/"
     dst = cityscapesLoader(local_path, is_transform=True, augmentations=augmentations)
     bs = 4
     trainloader = data.DataLoader(dst, batch_size=bs, num_workers=0)

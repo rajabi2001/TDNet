@@ -28,6 +28,9 @@ def get_loss_function(cfg):
         n_img_per_gpu = int(cfg["batch_size"]/torch.cuda.device_count())
         cropsize = cfg["train_augmentations"]["rcrop"]
         n_min = n_img_per_gpu * cropsize[0] * cropsize[1] // 16
+        # print(f"n_img_per_gpu = {n_img_per_gpu}")
+        # print(f"cropsize = {cropsize}")
+        # print(f"n_min = {n_min}")
         loss_params["n_min"] = n_min
 
     logger.info("Using {} with {} params".format(loss_name, loss_params))

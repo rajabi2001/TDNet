@@ -11,10 +11,12 @@ class Compose(object):
     def __init__(self, augmentations):
         self.augmentations = augmentations
         self.PIL2Numpy = False
+        self.to_tensor = transforms.ToTensor()
 
     def __call__(self, imgs, mask=None):
         assert ( isinstance(imgs, list))
         imgs_ = []
+        imgs_t = []
         for img in imgs:
             if isinstance(img, np.ndarray):
                 img = Image.fromarray(img, mode="RGB")
@@ -27,7 +29,14 @@ class Compose(object):
 
         for a in self.augmentations:
             imgs_, mask_ = a(imgs_, mask_)
-        return imgs_, mask_
+
+        for img in imgs_:
+            img = self.to_tensor(img)
+            imgs_t.append(img)
+
+        mask_ = np.array(mask_).astype(np.int8)
+
+        return imgs_t, mask_
 
 
 class RandomCrop(object):
@@ -307,7 +316,9 @@ class ColorNorm(object):
         assert ( isinstance(imgs, list))
         imgs_ = []
         for (idx, img) in enumerate(imgs):
-            img = self.norm(self.to_tensor(img))
-            mask_ = np.array(mask).astype(np.int64)
+            # img = self.norm(self.to_tensor(img))
+            img = self.to_tensor(img)
+            # mask_ = np.array(mask).astype(np.int64)
+            mask_ = mask
             imgs_.append(img)
         return imgs_, mask_

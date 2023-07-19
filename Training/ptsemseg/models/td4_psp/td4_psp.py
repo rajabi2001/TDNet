@@ -14,12 +14,27 @@ from .transformer import Encoding, Attention
 up_kwargs = {'mode': 'bilinear', 'align_corners': True}
 logger = logging.getLogger("ptsemseg")
 
+class BatchNorm2d(nn.BatchNorm2d):
+    '''(conv => BN => ReLU) * 2'''
+
+    def __init__(self, num_features, activation='none'):
+        super(BatchNorm2d, self).__init__(num_features=num_features)
+        if activation == 'leaky_relu':
+            self.activation = nn.LeakyReLU()
+        elif activation == 'none':
+            self.activation = lambda x:x
+        else:
+            raise Exception("Accepted activation: ['leaky_relu']")
+
+    def forward(self, x):
+        return self.activation(super(BatchNorm2d, self).forward(x))
+
 class td4_psp(nn.Module):
     """
     """
     def __init__(self,
                  nclass=21,
-                 norm_layer=nn.BatchNorm2d,
+                 norm_layer=BatchNorm2d,
                  backbone='resnet101',
                  dilated=True,
                  aux=True,
@@ -27,7 +42,8 @@ class td4_psp(nn.Module):
                  loss_fn=None,
                  path_num=None,
                  mdl_path = None,
-                 teacher = None
+                 teacher = None,
+                 finetune = False,
                  ):
         super(td4_psp, self).__init__()
 
@@ -94,11 +110,17 @@ class td4_psp(nn.Module):
         self.atn4_1 = Attention(512*self.expansion,64,norm_layer)
         self.atn4_2 = Attention(512*self.expansion,64,norm_layer)
         self.atn4_3 = Attention(512*self.expansion,64,norm_layer)
-        
-        self.layer_norm1 = Layer_Norm([97, 193])
-        self.layer_norm2 = Layer_Norm([97, 193])
-        self.layer_norm3 = Layer_Norm([97, 193])
-        self.layer_norm4 = Layer_Norm([97, 193])
+
+        if finetune == True:
+            self.layer_norm1 = Layer_Norm([97, 193])
+            self.layer_norm2 = Layer_Norm([97, 193])
+            self.layer_norm3 = Layer_Norm([97, 193])
+            self.layer_norm4 = Layer_Norm([97, 193])
+        else:
+            self.layer_norm1 = Layer_Norm([32, 64])
+            self.layer_norm2 = Layer_Norm([32, 64])
+            self.layer_norm3 = Layer_Norm([32, 64])
+            self.layer_norm4 = Layer_Norm([32, 64])
 
         self.head1 = FCNHead(512*self.expansion*1, nclass, norm_layer, chn_down=4)
         self.head2 = FCNHead(512*self.expansion*1, nclass, norm_layer, chn_down=4)
@@ -106,16 +128,16 @@ class td4_psp(nn.Module):
         self.head4 = FCNHead(512*self.expansion*1, nclass, norm_layer, chn_down=4)
 
         if aux:
-            self.auxlayer1 = FCNHead(256*self.expansion, nclass, norm_layer)
-            self.auxlayer2 = FCNHead(256*self.expansion, nclass, norm_layer)
-            self.auxlayer3 = FCNHead(256*self.expansion, nclass, norm_layer)
-            self.auxlayer4 = FCNHead(256*self.expansion, nclass, norm_layer)
+            self.auxlayer1 = FCNHead(256*self.expansion, 19, norm_layer)
+            self.auxlayer2 = FCNHead(256*self.expansion, 19, norm_layer)
+            self.auxlayer3 = FCNHead(256*self.expansion, 19, norm_layer)
+            self.auxlayer4 = FCNHead(256*self.expansion, 19, norm_layer)
             
-        #self.pretrained_init_2p()
-        self.pretrained_init()
-        self.KLD = nn.KLDivLoss()
+        # self.pretrained_init_2p()
+        # self.pretrained_init()
+        # self.KLD = nn.KLDivLoss()
         self.get_params()
-        self.teacher = teacher
+        # self.teacher = teacher
 
     def forward_path_psp(self, f4_img):
         _, _, h, w = f4_img.size()
@@ -137,10 +159,10 @@ class td4_psp(nn.Module):
         '''
         :param f_img: [t-3, t-2, t-1, t]
         '''
-        f1_img = f_img[0]
-        f2_img = f_img[1]
-        f3_img = f_img[2]
-        f4_img = f_img[3]
+        f1_img = f_img[0].cuda()
+        f2_img = f_img[1].cuda()
+        f3_img = f_img[2].cuda()
+        f4_img = f_img[3].cuda()
         
         _, _, h, w = f4_img.size()
 
@@ -165,9 +187,10 @@ class td4_psp(nn.Module):
         #atn_1 = self.atn4(k_4, v_4, q1, fea_size=z4.size())
 
         out1 = self.head1(self.layer_norm1(atn_1 + v1))
-        out1_sub = self.head1(self.layer_norm1(v1))
+        # out1_sub = self.head1(self.layer_norm1(v1))
 
         outputs1 = F.interpolate(out1, (h, w), **self._up_kwargs)
+        return outputs1
         outputs1_sub = F.interpolate(out1_sub, (h, w), **self._up_kwargs)
         
         if self.training:
@@ -191,10 +214,10 @@ class td4_psp(nn.Module):
         '''
         :param f_img: [t-3, t-2, t-1, t]
         '''
-        f1_img = f_img[0]
-        f2_img = f_img[1]
-        f3_img = f_img[2]
-        f4_img = f_img[3]
+        f1_img = f_img[0].cuda()
+        f2_img = f_img[1].cuda()
+        f3_img = f_img[2].cuda()
+        f4_img = f_img[3].cuda()
         
         _, _, h, w = f4_img.size()
 
@@ -220,9 +243,10 @@ class td4_psp(nn.Module):
 
         ############### SegHead ##############
         out2 = self.head2(self.layer_norm2(atn_2 + v2))
-        out2_sub = self.head2(self.layer_norm2(v2))
+        # out2_sub = self.head2(self.layer_norm2(v2))
 
         outputs2 = F.interpolate(out2, (h, w), **self._up_kwargs)
+        return outputs2
         outputs2_sub = F.interpolate(out2_sub, (h, w), **self._up_kwargs)
 
         if self.training:
@@ -246,10 +270,10 @@ class td4_psp(nn.Module):
         '''
         :param f_img: [t-3, t-2, t-1, t]
         '''
-        f1_img = f_img[0]
-        f2_img = f_img[1]
-        f3_img = f_img[2]
-        f4_img = f_img[3]
+        f1_img = f_img[0].cuda()
+        f2_img = f_img[1].cuda()
+        f3_img = f_img[2].cuda()
+        f4_img = f_img[3].cuda()
                 
         _, _, h, w = f4_img.size()
 
@@ -275,9 +299,10 @@ class td4_psp(nn.Module):
 
         ############### SegHead ##############
         out3 = self.head3(self.layer_norm3(atn_3 + v3))
-        out3_sub = self.head3(self.layer_norm3(v3))
+        # out3_sub = self.head3(self.layer_norm3(v3))
 
         outputs3 = F.interpolate(out3, (h, w), **self._up_kwargs)
+        return outputs3
         outputs3_sub = F.interpolate(out3_sub, (h, w), **self._up_kwargs)
 
         if self.training:
@@ -301,10 +326,10 @@ class td4_psp(nn.Module):
         '''
         :param f_img: [t-3, t-2, t-1, t]
         '''
-        f1_img = f_img[0]
-        f2_img = f_img[1]
-        f3_img = f_img[2]
-        f4_img = f_img[3]
+        f1_img = f_img[0].cuda()
+        f2_img = f_img[1].cuda()
+        f3_img = f_img[2].cuda()
+        f4_img = f_img[3].cuda()
         
         _, _, h, w = f4_img.size()
 
@@ -330,9 +355,10 @@ class td4_psp(nn.Module):
 
         ############### SegHead ##############
         out4 = self.head4(self.layer_norm4(atn_4 + v4))
-        out4_sub = self.head4(self.layer_norm4(v4))
+        # out4_sub = self.head4(self.layer_norm4(v4))
 
         outputs4 = F.interpolate(out4, (h, w), **self._up_kwargs)
+        return outputs4
         outputs4_sub = F.interpolate(out4_sub, (h, w), **self._up_kwargs)
 
         if self.training:
@@ -363,6 +389,8 @@ class td4_psp(nn.Module):
             outputs = self.forward_path4(f_img)
         else:
             raise RuntimeError("Only Four Paths.")
+        
+        return outputs
 
         if self.training:
             outputs_, outputs_sub, auxout, KD_loss = outputs
@@ -375,6 +403,7 @@ class td4_psp(nn.Module):
         else:
             #outputs = F.interpolate(outputs, (1024, 2048), **self._up_kwargs)
             return outputs
+        
         
         outputs = self.forward_path1(f_img) +\
                     self.forward_path2(f_img) +\
@@ -421,7 +450,6 @@ class td4_psp(nn.Module):
     def pretrained_init(self):
         if self.psp_path is not None:
             if os.path.isfile(self.psp_path):
-                logger.info("Initializaing sub networks with pretrained '{}'".format(self.psp_path))
                 print("Initializaing sub networks with pretrained '{}'".format(self.psp_path))
                 model_state = torch.load(self.psp_path)
                 backbone_state, psp_state, head_state1, head_state2, _, _, auxlayer_state = split_psp_dict(model_state,self.path_num//2)
@@ -441,6 +469,7 @@ class td4_psp(nn.Module):
                 self.auxlayer2.load_state_dict(auxlayer_state, strict=True)
                 self.auxlayer3.load_state_dict(auxlayer_state, strict=True)
                 self.auxlayer4.load_state_dict(auxlayer_state, strict=True)
+                exit()
             else:
                 logger.info("No pretrained found at '{}'".format(self.psp_path))
 

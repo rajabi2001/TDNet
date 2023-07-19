@@ -83,7 +83,7 @@ def split_psp_dict(state_dict, path_num =None):
 
     for k, v in model_state.items():
         s_k = k.split('.')
-        if s_k[0] == 'pretrained':
+        if s_k[0] == 'pretrained1':
             backbone_state['.'.join(s_k[1:])] = v
 
         if s_k[0] == 'head':

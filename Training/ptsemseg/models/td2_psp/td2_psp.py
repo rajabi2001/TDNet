@@ -14,12 +14,27 @@ from .transformer import Encoding, Attention
 up_kwargs = {'mode': 'bilinear', 'align_corners': True}
 logger = logging.getLogger("ptsemseg")
 
+class BatchNorm2d(nn.BatchNorm2d):
+    '''(conv => BN => ReLU) * 2'''
+
+    def __init__(self, num_features, activation='none'):
+        super(BatchNorm2d, self).__init__(num_features=num_features)
+        if activation == 'leaky_relu':
+            self.activation = nn.LeakyReLU()
+        elif activation == 'none':
+            self.activation = lambda x:x
+        else:
+            raise Exception("Accepted activation: ['leaky_relu']")
+
+    def forward(self, x):
+        return self.activation(super(BatchNorm2d, self).forward(x))
+
 class td2_psp(nn.Module):
     """
     """
     def __init__(self,
                  nclass=21,
-                 norm_layer=nn.BatchNorm2d,
+                 norm_layer=BatchNorm2d,
                  backbone='resnet101',
                  dilated=True,
                  aux=True,
@@ -69,6 +84,7 @@ class td2_psp(nn.Module):
 
         self.enc1 = Encoding(512*self.expansion,64,512*self.expansion//4,norm_layer)
         self.enc2 = Encoding(512*self.expansion,64,512*self.expansion//4,norm_layer)
+
         self.atn1 = Attention(512*self.expansion//4,64,norm_layer)
         self.atn2 = Attention(512*self.expansion//4,64,norm_layer)
 
@@ -83,10 +99,10 @@ class td2_psp(nn.Module):
             self.auxlayer1 = FCNHead(256*self.expansion, nclass, norm_layer)
             self.auxlayer2 = FCNHead(256*self.expansion, nclass, norm_layer)
 
-        self.pretrained_init()
-        self.KLD = nn.KLDivLoss()
+        # self.pretrained_init()
+        # self.KLD = nn.KLDivLoss()
         self.get_params()
-        self.teacher = teacher
+        # self.teacher = teacher
      
     
     def forward_path1(self, f_img):
@@ -106,9 +122,10 @@ class td2_psp(nn.Module):
 
         atn_1 = self.atn1(k2_, v2_, q1, fea_size=z1.size())
         out1 = self.head1(self.layer_norm1(atn_1 + v1))
-        out1_sub = self.head1(self.layer_norm1(v1))
+        # out1_sub = self.head1(self.layer_norm1(v1))
 
         outputs1 = F.interpolate(out1, (h, w), **self._up_kwargs)
+        return outputs1
         outputs1_sub = F.interpolate(out1_sub, (h, w), **self._up_kwargs)
         
         if self.training:
@@ -143,9 +160,10 @@ class td2_psp(nn.Module):
 
         atn_2 = self.atn2(k1_, v1_, q2, fea_size=z2.size())
         out2 = self.head2(self.layer_norm2(atn_2 + v2))
-        out2_sub = self.head2(self.layer_norm2(v2))
+        # out2_sub = self.head2(self.layer_norm2(v2))
 
         outputs2 = F.interpolate(out2, (h, w), **self._up_kwargs)
+        return outputs2
         outputs2_sub = F.interpolate(out2_sub, (h, w), **self._up_kwargs)
         
         if self.training:
@@ -173,6 +191,8 @@ class td2_psp(nn.Module):
             outputs = self.forward_path2(f2_img)
         else:
             raise RuntimeError("Only Two Paths.")
+        
+        return outputs
 
         if self.training:
             outputs_, outputs_sub, auxout, KD_loss = outputs
