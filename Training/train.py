@@ -9,7 +9,7 @@ import numpy as np
 from torch.nn.parallel.scatter_gather import gather
 from torch.utils import data
 from tqdm import tqdm
-from encoding.parallel import DataParallelModel, DataParallelCriterion
+# from encoding.parallel import DataParallelModel, DataParallelCriterion
 from ptsemseg.models import get_model
 from ptsemseg.loss import get_loss_function
 from ptsemseg.loader import get_loader
@@ -74,7 +74,7 @@ def train(cfg, logger, logdir):
     optimizer = get_optimizer(cfg["training"], model)
 
     # Setup Multi-GPU
-    model = DataParallelModel(model).cuda()
+    model = model.cuda()
 
     #Initialize training param
     cnt_iter = 0
